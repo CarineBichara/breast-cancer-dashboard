@@ -467,7 +467,7 @@ st.markdown("---")
 st.header("🗺️ Find a Breast-Cancer Screening Hospital")
 
 # Your CSV with all hospitals
-CSV_PATH = r"lebanon_private_hospitals_complete.csv"
+CSV_PATH = "demo_hospitals_with_coordinates.csv"
 
 # 1️⃣ Load data or fail gracefully
 if not os.path.exists(CSV_PATH):
