@@ -12,7 +12,7 @@ from pytrends.request import TrendReq
 st.set_page_config(page_title="Breast Cancer Awareness", layout="wide")
 
 # Load and clean data
-file_path = "C:/Users/User/Desktop/Carine/AUB/Summer 2024-25/Health Care/Breast_Cancer_Survival_Data_with_YLL_YLD_DALY.csv"
+file_path = "Breast_Cancer_Survival_Data_with_YLL_YLD_DALY.csv"
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 
@@ -50,10 +50,10 @@ filtered = filtered[
 ]
 
 # Display logos and titles
-st.image("C:/Users/User/Desktop/Carine/AUB/Summer 2024-25/Health Care/pink_ribbon.png", width=80)
+st.image("pink_ribbon.png", width=80)
 st.title("Breast Cancer Awareness")
 st.markdown("Developed by **Carine Bichara**")
-st.image("C:/Users/User/Desktop/Carine/AUB/Summer 2024-25/Health Care/manandwoman.png", width=600)
+st.image("manandwoman.png", width=600)
 # Core message & call-to-action (hard-coded values)
 st.markdown(
     "### Breast cancer in Lebanon:\n"
@@ -291,7 +291,7 @@ st.header("National Benchmarks (GCO Data)")
 
 # ─── Population-Level Rates & Benchmarks ───
 rates = pd.read_csv(
-    r"C:\Users\User\Desktop\Carine\AUB\Summer 2024-25\Health Care\GCO_Lebanon_rates.csv"
+    r"GCO_Lebanon_rates.csv"
 )
 latest = rates[rates.year == rates.year.max()]
 
@@ -467,7 +467,7 @@ st.markdown("---")
 st.header("🗺️ Find a Breast-Cancer Screening Hospital")
 
 # Your CSV with all hospitals
-CSV_PATH = r"C:\Users\User\Desktop\Carine\AUB\Summer 2024-25\Health Care\lebanon_private_hospitals_complete.csv"
+CSV_PATH = r"lebanon_private_hospitals_complete.csv"
 
 # 1️⃣ Load data or fail gracefully
 if not os.path.exists(CSV_PATH):
