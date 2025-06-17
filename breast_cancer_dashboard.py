@@ -64,7 +64,7 @@ filtered = df.loc[fltr].copy()
 # Header & intro
 # ────────────────────────────────────────────────────────────────
 st.image("pink_ribbon.png", width=80)
-st.title("Breast Cancer Awareness Dashboard – Lebanon")
+st.title("Breast Cancer Awareness")
 st.caption("Developed by Carine Bichara")
 st.image("manandwoman.png", width=600)
 
