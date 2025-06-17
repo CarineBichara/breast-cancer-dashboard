@@ -1,6 +1,6 @@
+# Grid-based Layout Version of Dashboard
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
@@ -11,7 +11,6 @@ from streamlit_folium import st_folium
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import os
 
-# Config
 st.set_page_config(page_title="Breast Cancer Dashboard", layout="wide")
 
 # Load Data
@@ -39,42 +38,43 @@ filtered = df[
 st.title("🩺 Breast Cancer Awareness in Lebanon")
 st.caption("By Carine Bichara")
 
-# KPI Metrics
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Patients", f"{len(filtered):,}")
-col2.metric("Deaths", f"{int(filtered['mortality'].sum()):,}")
-col3.metric("Total DALYs", f"{int(filtered['daly'].sum()):,}")
+# Top KPIs and Pie Chart
+kpi1, kpi2, kpi3, pie = st.columns([1, 1, 1, 2])
+kpi1.metric("Total Patients", f"{len(filtered):,}")
+kpi2.metric("Deaths", f"{int(filtered['mortality'].sum()):,}")
+kpi3.metric("Total DALYs", f"{int(filtered['daly'].sum()):,}")
+with pie:
+    gender_counts = filtered["gender"].value_counts()
+    fig_gender = px.pie(
+        names=gender_counts.index,
+        values=gender_counts.values,
+        title="Gender Breakdown",
+        color_discrete_sequence=["#8B0000", "#FFC1C1"]
+    )
+    st.plotly_chart(fig_gender, use_container_width=True)
 
-# Gender Pie Chart
-gender_counts = filtered["gender"].value_counts()
-fig_gender = px.pie(
-    names=gender_counts.index,
-    values=gender_counts.values,
-    title="Gender Breakdown",
-    color_discrete_sequence=["#8B0000", "#FFC1C1"]
-)
-st.plotly_chart(fig_gender, use_container_width=True)
+# Age & Surgery Chart Grid
+row1_col1, row1_col2 = st.columns(2)
+with row1_col1:
+    fig_age, ax = plt.subplots()
+    filtered["age"].hist(bins=12, color="#F4CCCC", edgecolor="white", ax=ax)
+    ax.set_title("Age Distribution")
+    ax.set_xlabel("Age")
+    ax.set_ylabel("Count")
+    st.pyplot(fig_age)
 
-# Age Distribution
-fig_age, ax = plt.subplots()
-filtered["age"].hist(bins=12, color="#F4CCCC", edgecolor="white", ax=ax)
-ax.set_title("Age Distribution")
-ax.set_xlabel("Age")
-ax.set_ylabel("Count")
-st.pyplot(fig_age)
-
-# Surgery Type
-surgery_counts = filtered["surgery_type"].value_counts()
-fig_surgery, ax2 = plt.subplots()
-ax2.pie(
-    surgery_counts,
-    labels=surgery_counts.index,
-    autopct="%1.0f%%",
-    startangle=90,
-    colors=sns.color_palette("Reds")[:len(surgery_counts)]
-)
-ax2.axis("equal")
-st.pyplot(fig_surgery)
+with row1_col2:
+    surgery_counts = filtered["surgery_type"].value_counts()
+    fig_surg, ax2 = plt.subplots()
+    ax2.pie(
+        surgery_counts,
+        labels=surgery_counts.index,
+        autopct="%1.0f%%",
+        startangle=90,
+        colors=sns.color_palette("Reds")[:len(surgery_counts)]
+    )
+    ax2.axis("equal")
+    st.pyplot(fig_surg)
 
 # Summary Table
 st.subheader("Summary by Gender and Tumor Stage")
@@ -85,20 +85,20 @@ summary = filtered.groupby(["gender", "tumour_stage"]).agg(
 ).reset_index()
 st.dataframe(summary)
 
-# National GCO Data
+# GCO Incidence & Mortality Side-by-Side
+st.subheader("National Benchmarks from GCO")
 rates = pd.read_csv("GCO_Lebanon_rates.csv")
 latest = rates[rates.year == rates.year.max()]
-
-colA, colB = st.columns(2)
-with colA:
+colG1, colG2 = st.columns(2)
+with colG1:
     fig1 = px.bar(latest, x="gender", y="incidence_rate", title="Incidence Rate", text_auto=True)
     st.plotly_chart(fig1, use_container_width=True)
-with colB:
+with colG2:
     fig2 = px.bar(latest, x="gender", y="mortality_rate", title="Mortality Rate", text_auto=True)
     st.plotly_chart(fig2, use_container_width=True)
 
-# Time Series Forecast
-st.subheader("Forecasting Breast Cancer Incidence")
+# Time Series & Forecast
+st.subheader("3-Year Forecast: Incidence Rate")
 ts = rates.groupby("year")[["incidence_rate"]].mean().reset_index()
 y = ts.set_index("year")["incidence_rate"]
 model = SARIMAX(y, order=(1, 1, 1))
@@ -116,11 +116,11 @@ fig3.add_trace(go.Scatter(
     fill="toself", fillcolor="rgba(255,0,0,0.2)", line=dict(color="rgba(255,255,255,0)"),
     name="95% CI", showlegend=False
 ))
-fig3.update_layout(title="3-Year Incidence Forecast")
+fig3.update_layout(title="Forecasted Incidence Rate")
 st.plotly_chart(fig3, use_container_width=True)
 
 # Hospital Map
-st.header("🗺️ Screening Hospital Finder")
+st.subheader("🗺️ Screening Hospital Finder")
 CSV_PATH = "demo_hospitals_with_coordinates.csv"
 if os.path.exists(CSV_PATH):
     hosp = pd.read_csv(CSV_PATH)
