@@ -440,25 +440,24 @@ st.markdown("---")
 st.header("🗺️ Find a Breast-Cancer Screening Hospital")
 
 CSV_PATH = "lebanon_private_hospitals_complete.csv"
-
 if not os.path.exists(CSV_PATH):
     st.error(f"CSV file not found: {CSV_PATH}")
     st.stop()
 
 hosp = pd.read_csv(CSV_PATH)
 
-# Normalize text columns for reliable search
+# ── 1. Normalise text for reliable search
 hosp["name_clean"] = hosp["Name"].str.strip().str.lower()
 hosp["caza_clean"] = hosp["Caza"].astype(str).str.strip().str.lower()
-hosp["gov_clean"] = hosp.get("governorate", hosp["Caza"]).astype(str).str.strip().str.lower()
+hosp["gov_clean"]  = hosp.get("governorate", hosp["Caza"]).astype(str).str.strip().str.lower()
 
-# Geocode if coordinates are missing
+# ── 2. Geocode rows that have no lat/lon (keeps your original cache logic)
 if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude", "longitude"]].isna().any().any():
     geolocator = Nominatim(user_agent="bc-screening-map")
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+    geocode    = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
     cache_path = os.path.join(os.path.dirname(CSV_PATH) or ".", "geo_cache.json")
-    geo_cache = json.load(open(cache_path, "r", encoding="utf-8")) if os.path.exists(cache_path) else {}
+    geo_cache  = json.load(open(cache_path, "r", encoding="utf-8")) if os.path.exists(cache_path) else {}
 
     def fetch_latlon(row):
         if pd.notna(row.get("latitude")) and pd.notna(row.get("longitude")):
@@ -476,21 +475,34 @@ if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude"
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(geo_cache, f, ensure_ascii=False, indent=2)
 
-# Search bar
+# ── 3. Search box + filter
 query = st.text_input("🔎 Search by City / Caza / Hospital").strip().lower()
-mask = (
-    hosp["name_clean"].str.contains(query)
-    | hosp["caza_clean"].str.contains(query)
-    | hosp["gov_clean"].str.contains(query)
+mask  = (
+    hosp["name_clean"].str.contains(query, regex=False)
+    | hosp["caza_clean"].str.contains(query, regex=False)
+    | hosp["gov_clean"].str.contains(query, regex=False)
 ) if query else slice(None)
 data = hosp.loc[mask].copy()
 
-st.write(f"**{len(data)} hospital(s) found**")
+# ── 4. Results message + caza summary
+if query:
+    st.write(f"**{len(data)} hospital(s) found for '{query}'**")
+else:
+    st.write(f"**{len(data)} hospital(s) found**")
 
+if not data.empty:
+    caza_counts = (
+        data["Caza"]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"index": "Caza", "Caza": "Hospital Count"})
+    )
+    st.dataframe(caza_counts, use_container_width=True)
+
+# ── 5. Map and table (unchanged except tooltip line)
 if data.empty:
     st.warning("No hospitals match that search.")
 else:
-    # Generate map
     m = folium.Map(
         location=[data["latitude"].mean(), data["longitude"].mean()],
         zoom_start=9,
@@ -502,18 +514,16 @@ else:
     for _, row in data.iterrows():
         if pd.isna(row["latitude"]) or pd.isna(row["longitude"]):
             continue
-
         popup_html = (
             f"<b>{row['Name']}</b><br>"
             f"Caza: {row['Caza']}<br>"
             f"Phone: {row['Phone']}<br>"
             f"Investment #: {row['Investment_Authorization_Nb']}"
         )
-
         folium.Marker(
             [row["latitude"], row["longitude"]],
             popup=popup_html,
-            tooltip=row["Name"],  # ← this shows name on hover
+            tooltip=row["Name"],        # shows name on hover
             icon=folium.Icon(color="red", icon="plus-sign"),
         ).add_to(cluster)
 
@@ -521,8 +531,11 @@ else:
 
     with st.expander("↕️ See hospitals in a table"):
         st.dataframe(
-            data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]].reset_index(drop=True)
+            data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]]
+            .reset_index(drop=True),
+            use_container_width=True,
         )
+
 # ────────────────────────────────────────────────────────────────
 # Footer
 # ────────────────────────────────────────────────────────────────
@@ -534,3 +547,4 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.caption("© Carine Bichara | Breast Cancer Awareness Dashboard")
+
