@@ -232,16 +232,6 @@ if query:
 else:
     st.write(f"**{len(data)} hospital(s) found**")
 
-# Caza summary
-if not data.empty:
-    caza_counts = (
-        data["caza"]
-        .value_counts()
-        .reset_index()
-        .rename(columns={"index": "Caza", "caza": "Hospital Count"})
-    )
-    st.dataframe(caza_counts, use_container_width=True)
-
 # Map
 if data.empty:
     st.warning("No hospitals match that search.")
