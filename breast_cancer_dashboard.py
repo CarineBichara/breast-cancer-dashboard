@@ -327,8 +327,8 @@ st.plotly_chart(fig1, use_container_width=True)
 
 with st.expander("Interpretation: Incidence Rate"):
     st.markdown(
-        f"- **Women:** {latest.query(\"gender == 'Female'\").incidence_rate.values[0]:.1f} per 100 000  \n"
-        f"- **Men:** {latest.query(\"gender == 'Male'\").incidence_rate.values[0]:.1f} per 100 000  \n\n"
+        f"- **Women:** {latest.query('gender == \"Female\"')['incidence_rate'].values[0]:.1f} per 100 000  \n"
+        f"- **Men:** {latest.query('gender == \"Male\"')['incidence_rate'].values[0]:.1f} per 100 000  \n\n"
         "Screening must focus on women but remain inclusive of men."
     )
 
@@ -349,8 +349,8 @@ st.plotly_chart(fig2, use_container_width=True)
 
 with st.expander("Interpretation: Mortality Rate"):
     st.markdown(
-        f"- **Women:** {latest.query(\"gender == 'Female'\").mortality_rate.values[0]:.1f} per 100 000  \n"
-        f"- **Men:** {latest.query(\"gender == 'Male'\").mortality_rate.values[0]:.1f} per 100 000  \n\n"
+        f"- **Women:** {latest.query('gender == \"Female\"')['mortality_rate'].values[0]:.1f} per 100 000  \n"
+        f"- **Men:** {latest.query('gender == \"Male\"')['mortality_rate'].values[0]:.1f} per 100 000  \n\n"
         "Again, burden is much higher in women but men must not be ignored."
     )
 
