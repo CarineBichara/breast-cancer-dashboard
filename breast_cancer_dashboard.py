@@ -206,87 +206,52 @@ st.subheader("Short-Term Forecast"); st.plotly_chart(fig_fc, use_container_width
 st.markdown("---")
 st.header("🗺️ Find a Breast-Cancer Screening Hospital")
 
-CSV_PATH = "lebanon_private_hospitals_complete.csv"
+CSV_PATH = "demo_hospitals_with_coordinates.csv"
 if not os.path.exists(CSV_PATH):
     st.error(f"CSV file not found: {CSV_PATH}")
     st.stop()
 
 hosp = pd.read_csv(CSV_PATH)
+hosp.columns = hosp.columns.str.strip().str.lower()
 
-# Normalize text columns for reliable search
-hosp["name_clean"] = hosp["Name"].str.strip().str.lower()
-hosp["caza_clean"] = hosp["Caza"].astype(str).str.strip().str.lower()
-hosp["gov_clean"]  = hosp.get("governorate", hosp["Caza"]).astype(str).str.strip().str.lower()
+# Normalize for search
+hosp["name_clean"] = hosp["name"].str.strip().str.lower()
+hosp["caza_clean"] = hosp["caza"].astype(str).str.strip().str.lower()
 
-# Safe geocoding function with fallback
-from geopy.exc import GeocoderUnavailable
-
-def safe_geocode(query):
-    try:
-        loc = geocode(query, timeout=5)
-        return (loc.latitude, loc.longitude) if loc else (None, None)
-    except (GeocoderUnavailable, ConnectionError):
-        return (None, None)
-
-# Geocode hospitals if needed
-if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude", "longitude"]].isna().any().any():
-    geolocator = Nominatim(user_agent="bc-screening-map")
-    geocode = RateLimiter(safe_geocode, min_delay_seconds=1)
-
-    cache_path = os.path.join(os.path.dirname(CSV_PATH) or ".", "geo_cache.json")
-    geo_cache = json.load(open(cache_path, "r", encoding="utf-8")) if os.path.exists(cache_path) else {}
-
-    def fetch_latlon(row):
-        if pd.notna(row.get("latitude")) and pd.notna(row.get("longitude")):
-            return row["latitude"], row["longitude"]
-        key = f'{row["Name"]}_{row["Caza"]}'
-        if key in geo_cache:
-            return geo_cache[key]
-        latlon = safe_geocode(f'{row["Name"]}, {row["Caza"]}, Lebanon')
-        geo_cache[key] = latlon
-        return latlon
-
-    hosp[["latitude", "longitude"]] = hosp.apply(fetch_latlon, axis=1, result_type="expand")
-    with open(cache_path, "w", encoding="utf-8") as f:
-        json.dump(geo_cache, f, ensure_ascii=False, indent=2)
-
-# Search bar
+# Search
 query = st.text_input("🔎 Search by City / Caza / Hospital").strip().lower()
 mask = (
     hosp["name_clean"].str.contains(query, regex=False)
     | hosp["caza_clean"].str.contains(query, regex=False)
-    | hosp["gov_clean"].str.contains(query, regex=False)
 ) if query else slice(None)
 data = hosp.loc[mask].copy()
 
-# Results message
+# Result summary
 if query:
     st.write(f"**{len(data)} hospital(s) found for '{query}'**")
 else:
     st.write(f"**{len(data)} hospital(s) found**")
 
-# Caza summary table
+# Caza summary
 if not data.empty:
     caza_counts = (
-        data["Caza"]
+        data["caza"]
         .value_counts()
         .reset_index()
-        .rename(columns={"index": "Caza", "Caza": "Hospital Count"})
+        .rename(columns={"index": "Caza", "caza": "Hospital Count"})
     )
     st.dataframe(caza_counts, use_container_width=True)
 
-# Map and markers (safe center fallback)
+# Map
 if data.empty:
     st.warning("No hospitals match that search.")
 else:
-    fallback_center = [33.8547, 35.8623]  # Lebanon center
-    center_lat = data["latitude"].dropna().mean()
-    center_lon = data["longitude"].dropna().mean()
-    if pd.isna(center_lat) or pd.isna(center_lon):
-        center_lat, center_lon = fallback_center
+    import folium
+    from folium.plugins import MarkerCluster
+    from streamlit_folium import st_folium
 
     m = folium.Map(
-        location=[center_lat, center_lon],
+        location=[data["latitude"].mean(), data["longitude"].mean()],
         zoom_start=9,
         tiles="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
         attr="Google",
@@ -297,15 +262,15 @@ else:
         if pd.isna(row["latitude"]) or pd.isna(row["longitude"]):
             continue
         popup_html = (
-            f"<b>{row['Name']}</b><br>"
-            f"Caza: {row['Caza']}<br>"
-            f"Phone: {row['Phone']}<br>"
-            f"Investment #: {row['Investment_Authorization_Nb']}"
+            f"<b>{row['name']}</b><br>"
+            f"Caza: {row['caza']}<br>"
+            f"Phone: {row['phone']}<br>"
+            f"Investment #: {row['investment_authorization_nb']}"
         )
         folium.Marker(
             [row["latitude"], row["longitude"]],
             popup=popup_html,
-            tooltip=row["Name"],
+            tooltip=row["name"],
             icon=folium.Icon(color="red", icon="plus-sign"),
         ).add_to(cluster)
 
@@ -313,10 +278,9 @@ else:
 
     with st.expander("↕️ See hospitals in a table"):
         st.dataframe(
-            data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]].reset_index(drop=True),
+            data[["name", "caza", "phone", "investment_authorization_nb"]].reset_index(drop=True),
             use_container_width=True,
         )
-
 # Footer
 st.markdown("---")
 st.markdown(
