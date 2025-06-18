@@ -144,62 +144,111 @@ ax.set_xlabel("Years of Life Lost (YLL)"); ax.set_ylabel("Tumor Stage")
 ax.set_title("Distribution of YLL by Tumor Stage", fontsize=10)
 st.pyplot(fig)
 
-# ───────────────────── National benchmarks (GCO) — bar plots
-st.markdown("---"); st.header("National Benchmarks (GCO Data)")
+# ───────────────────── National benchmarks (GCO) — convert to %
 rates   = pd.read_csv("GCO_Lebanon_rates.csv")
 latest  = rates.loc[rates.year == rates.year.max()]
 
-for metric, title in [("incidence_rate","Incidence"), ("mortality_rate","Mortality")]:
+# Convert rates to percentages
+rates["incidence_pct"] = rates["incidence_rate"] / 1_000
+rates["mortality_pct"] = rates["mortality_rate"] / 1_000
+latest["incidence_pct"]  = latest["incidence_rate"]  / 1_000
+latest["mortality_pct"]  = latest["mortality_rate"]  / 1_000
+
+# ───────────────────── National benchmarks — BAR PLOTS (%)
+for metric, title in [("incidence_pct", "Incidence"),
+                      ("mortality_pct", "Mortality")]:
     fig_tmp = px.bar(
-        latest, x="gender", y=metric, text_auto=".1f",
-        labels={metric:f"{title} per 100 000", "gender":"Gender"},
-        title=f"Lebanon {title} Rate — {int(latest.year.iloc[0])}",
-        color="gender", color_discrete_map={"Female":"#8B0000","Male":"#FFC1C1"})
-    fig_tmp.update_layout(height=330, width=500, showlegend=False,
-                          margin=dict(l=10,r=10,t=40,b=20),
-                          yaxis=dict(showticklabels=False))
-    fig_tmp.update_traces(textposition="outside")
+        latest, x="gender", y=metric,
+        text_auto=".3f",
+        labels={metric: f"{title} (%)", "gender": "Gender"},
+        title=f"Lebanon {title} — {int(latest.year.iloc[0])}",
+        color="gender",
+        color_discrete_map={"Female": "#8B0000", "Male": "#FFC1C1"},
+    )
+    fig_tmp.update_layout(
+        height=330, width=500, showlegend=False,
+        margin=dict(l=10, r=10, t=40, b=20),
+        yaxis=dict(showticklabels=False)
+    )
+    fig_tmp.update_traces(texttemplate="%{text:.3f}%")
     st.plotly_chart(fig_tmp, use_container_width=True)
 
 # ───────────────────── Time-trend & forecast (compact)
 st.markdown("---"); st.subheader("Time Trends & Short-Term Forecast")
-ts = rates.groupby("year")[["incidence_rate","mortality_rate"]].mean().reset_index()
+# ───────────────────── Time-trend & short-term forecast  —  PERCENT VALUES
+# (make sure `rates` already contains incidence_pct & mortality_pct as shown earlier)
+
+# 1. Prep the time-series dataframe
+ts = (
+    rates.groupby("year")[["incidence_pct", "mortality_pct"]]
+         .mean()
+         .reset_index()
+)
 ts["year_dt"] = pd.to_datetime(ts["year"].astype(str))
-fig_trend = px.line(ts, x="year_dt", y=["incidence_rate","mortality_rate"],
-                    labels=dict(value="Rate per 100 000", year_dt="Year", variable="Metric"),
-                    title="Lebanon: Incidence & Mortality Trends",
-                    color_discrete_sequence=["#8B0000","#FFC1C1"])
-fig_trend.update_layout(height=350, width=700, xaxis=dict(rangeslider=dict(visible=True)),
-                        margin=dict(l=10,r=10,t=40,b=20))
+
+# 2. Line chart: historical trends (%)
+fig_trend = px.line(
+    ts, x="year_dt", y=["incidence_pct", "mortality_pct"],
+    labels=dict(value="Rate (%)", year_dt="Year", variable="Metric"),
+    title="Lebanon: Incidence & Mortality Trends",
+    color_discrete_sequence=["#8B0000", "#FFC1C1"],
+)
+fig_trend.update_layout(
+    height=350, width=700,
+    xaxis=dict(rangeslider=dict(visible=True)),
+    margin=dict(l=10, r=10, t=40, b=20),
+    yaxis_tickformat=".2f"
+)
 st.plotly_chart(fig_trend, use_container_width=True)
 
-# forecast
-y = ts.set_index("year")["incidence_rate"]
-res = SARIMAX(y, order=(1,1,1), enforce_stationarity=False,
-              enforce_invertibility=False).fit(disp=False)
-h, ci = 3, res.get_forecast(3).conf_int(alpha=0.05)
-pred  = res.get_forecast(h).predicted_mean
-years_fc = list(range(ts["year"].max()+1, ts["year"].max()+1+h))
-df_fc = pd.DataFrame({"year":years_fc, "forecast":pred.values,
-                      "lower":ci.iloc[:,0], "upper":ci.iloc[:,1]})
+# 3. Forecast on % series (SARIMAX)
+y = ts.set_index("year")["incidence_pct"]         # ← use % column
+res = SARIMAX(
+    y, order=(1, 1, 1),
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
 
+h = 3                               # forecast horizon
+pred = res.get_forecast(h).predicted_mean
+ci   = res.get_forecast(h).conf_int(alpha=0.05)
+years_fc = list(range(ts["year"].max() + 1, ts["year"].max() + 1 + h))
+
+df_fc = pd.DataFrame({
+    "year":  years_fc,
+    "forecast": pred.values,
+    "lower":    ci.iloc[:, 0],
+    "upper":    ci.iloc[:, 1],
+})
+
+# 4. Plot the forecast
 fig_fc = go.Figure()
-fig_fc.add_trace(go.Scatter(x=ts["year"], y=ts["incidence_rate"],
-                            name="Historical", mode="lines+markers",
-                            line=dict(color="#8B0000"), marker=dict(color="#8B0000")))
-fig_fc.add_trace(go.Scatter(x=df_fc["year"], y=df_fc["forecast"],
-                            name="Forecast", mode="lines+markers",
-                            line=dict(color="#FFC1C1"), marker=dict(color="#FFC1C1")))
 fig_fc.add_trace(go.Scatter(
-    x=df_fc["year"].tolist()+df_fc["year"][::-1].tolist(),
-    y=df_fc["upper"].tolist()+df_fc["lower"][::-1].tolist(),
-    fill="toself", fillcolor="rgba(255,0,0,0.2)", line=dict(color="rgba(0,0,0,0)"),
-    hoverinfo="skip", name="95% CI"))
-fig_fc.update_layout(title="3-Year Forecast: Incidence Rate",
-                     xaxis_title="Year", yaxis_title="Incidence per 100 000",
-                     height=350, width=700, margin=dict(l=10,r=10,t=40,b=20))
-st.subheader("Short-Term Forecast"); st.plotly_chart(fig_fc, use_container_width=True)
-
+    x=ts["year"], y=ts["incidence_pct"],
+    name="Historical", mode="lines+markers",
+    line=dict(color="#8B0000"), marker=dict(color="#8B0000")
+))
+fig_fc.add_trace(go.Scatter(
+    x=df_fc["year"], y=df_fc["forecast"],
+    name="Forecast", mode="lines+markers",
+    line=dict(color="#FFC1C1"), marker=dict(color="#FFC1C1")
+))
+fig_fc.add_trace(go.Scatter(
+    x=df_fc["year"].tolist() + df_fc["year"][::-1].tolist(),
+    y=df_fc["upper"].tolist() + df_fc["lower"][::-1].tolist(),
+    fill="toself", fillcolor="rgba(255,0,0,0.2)",
+    line=dict(color="rgba(0,0,0,0)"), hoverinfo="skip",
+    name="95% CI"
+))
+fig_fc.update_layout(
+    title="3-Year Forecast: Incidence (%)",
+    xaxis_title="Year", yaxis_title="Incidence (%)",
+    height=350, width=700,
+    margin=dict(l=10, r=10, t=40, b=20),
+    yaxis_tickformat=".2f"
+)
+st.subheader("Short-Term Forecast")
+st.plotly_chart(fig_fc, use_container_width=True)
 # ────────────────────────────────────────────────────────────────
 # Hospital map
 # ────────────────────────────────────────────────────────────────
