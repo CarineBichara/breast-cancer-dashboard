@@ -447,7 +447,12 @@ if not os.path.exists(CSV_PATH):
 
 hosp = pd.read_csv(CSV_PATH)
 
-# Geocode if needed
+# Normalize text columns for reliable search
+hosp["name_clean"] = hosp["Name"].str.strip().str.lower()
+hosp["caza_clean"] = hosp["Caza"].astype(str).str.strip().str.lower()
+hosp["gov_clean"] = hosp.get("governorate", hosp["Caza"]).astype(str).str.strip().str.lower()
+
+# Geocode if coordinates are missing
 if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude", "longitude"]].isna().any().any():
     geolocator = Nominatim(user_agent="bc-screening-map")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
@@ -471,11 +476,12 @@ if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude"
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(geo_cache, f, ensure_ascii=False, indent=2)
 
-query = st.text_input("🔎 Search by City / Caza / Hospital", "").strip().lower()
+# Search bar
+query = st.text_input("🔎 Search by City / Caza / Hospital").strip().lower()
 mask = (
-    hosp["Caza"].astype(str).str.lower().str.contains(query)
-    | hosp.get("governorate", hosp["Caza"]).astype(str).str.lower().str.contains(query)
-    | hosp["Name"].str.lower().str.contains(query)
+    hosp["name_clean"].str.contains(query)
+    | hosp["caza_clean"].str.contains(query)
+    | hosp["gov_clean"].str.contains(query)
 ) if query else slice(None)
 data = hosp.loc[mask].copy()
 
@@ -484,6 +490,7 @@ st.write(f"**{len(data)} hospital(s) found**")
 if data.empty:
     st.warning("No hospitals match that search.")
 else:
+    # Generate map
     m = folium.Map(
         location=[data["latitude"].mean(), data["longitude"].mean()],
         zoom_start=9,
@@ -491,18 +498,22 @@ else:
         attr="Google",
     )
     cluster = MarkerCluster().add_to(m)
+
     for _, row in data.iterrows():
         if pd.isna(row["latitude"]) or pd.isna(row["longitude"]):
             continue
+
         popup_html = (
             f"<b>{row['Name']}</b><br>"
             f"Caza: {row['Caza']}<br>"
             f"Phone: {row['Phone']}<br>"
             f"Investment #: {row['Investment_Authorization_Nb']}"
         )
+
         folium.Marker(
             [row["latitude"], row["longitude"]],
             popup=popup_html,
+            tooltip=row["Name"],  # ← this shows name on hover
             icon=folium.Icon(color="red", icon="plus-sign"),
         ).add_to(cluster)
 
@@ -512,7 +523,6 @@ else:
         st.dataframe(
             data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]].reset_index(drop=True)
         )
-
 # ────────────────────────────────────────────────────────────────
 # Footer
 # ────────────────────────────────────────────────────────────────
