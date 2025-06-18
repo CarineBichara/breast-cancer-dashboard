@@ -200,6 +200,7 @@ fig_fc.update_layout(title="3-Year Forecast: Incidence Rate",
                      height=350, width=700, margin=dict(l=10,r=10,t=40,b=20))
 st.subheader("Short-Term Forecast"); st.plotly_chart(fig_fc, use_container_width=True)
 
+# ────────────────────────────────────────────────────────────────
 # Hospital map
 # ────────────────────────────────────────────────────────────────
 st.markdown("---")
@@ -212,18 +213,28 @@ if not os.path.exists(CSV_PATH):
 
 hosp = pd.read_csv(CSV_PATH)
 
-# ── 1. Normalise text for reliable search
+# Normalize text columns for reliable search
 hosp["name_clean"] = hosp["Name"].str.strip().str.lower()
 hosp["caza_clean"] = hosp["Caza"].astype(str).str.strip().str.lower()
 hosp["gov_clean"]  = hosp.get("governorate", hosp["Caza"]).astype(str).str.strip().str.lower()
 
-# ── 2. Geocode rows that have no lat/lon (keeps your original cache logic)
+# Safe geocoding function with fallback
+from geopy.exc import GeocoderUnavailable
+
+def safe_geocode(query):
+    try:
+        loc = geocode(query, timeout=5)
+        return (loc.latitude, loc.longitude) if loc else (None, None)
+    except (GeocoderUnavailable, ConnectionError):
+        return (None, None)
+
+# Geocode hospitals if needed
 if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude", "longitude"]].isna().any().any():
     geolocator = Nominatim(user_agent="bc-screening-map")
-    geocode    = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+    geocode = RateLimiter(safe_geocode, min_delay_seconds=1)
 
     cache_path = os.path.join(os.path.dirname(CSV_PATH) or ".", "geo_cache.json")
-    geo_cache  = json.load(open(cache_path, "r", encoding="utf-8")) if os.path.exists(cache_path) else {}
+    geo_cache = json.load(open(cache_path, "r", encoding="utf-8")) if os.path.exists(cache_path) else {}
 
     def fetch_latlon(row):
         if pd.notna(row.get("latitude")) and pd.notna(row.get("longitude")):
@@ -231,31 +242,30 @@ if {"latitude", "longitude"}.issubset(hosp.columns) is False or hosp[["latitude"
         key = f'{row["Name"]}_{row["Caza"]}'
         if key in geo_cache:
             return geo_cache[key]
-        loc = geocode(f'{row["Name"]}, {row["Caza"]}, Lebanon')
-        latlon = (loc.latitude, loc.longitude) if loc else (None, None)
+        latlon = safe_geocode(f'{row["Name"]}, {row["Caza"]}, Lebanon')
         geo_cache[key] = latlon
-        time.sleep(1)
         return latlon
 
     hosp[["latitude", "longitude"]] = hosp.apply(fetch_latlon, axis=1, result_type="expand")
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(geo_cache, f, ensure_ascii=False, indent=2)
 
-# ── 3. Search box + filter
+# Search bar
 query = st.text_input("🔎 Search by City / Caza / Hospital").strip().lower()
-mask  = (
+mask = (
     hosp["name_clean"].str.contains(query, regex=False)
     | hosp["caza_clean"].str.contains(query, regex=False)
     | hosp["gov_clean"].str.contains(query, regex=False)
 ) if query else slice(None)
 data = hosp.loc[mask].copy()
 
-# ── 4. Results message + caza summary
+# Results message
 if query:
     st.write(f"**{len(data)} hospital(s) found for '{query}'**")
 else:
     st.write(f"**{len(data)} hospital(s) found**")
 
+# Caza summary table
 if not data.empty:
     caza_counts = (
         data["Caza"]
@@ -265,12 +275,18 @@ if not data.empty:
     )
     st.dataframe(caza_counts, use_container_width=True)
 
-# ── 5. Map and table (unchanged except tooltip line)
+# Map and markers (safe center fallback)
 if data.empty:
     st.warning("No hospitals match that search.")
 else:
+    fallback_center = [33.8547, 35.8623]  # Lebanon center
+    center_lat = data["latitude"].dropna().mean()
+    center_lon = data["longitude"].dropna().mean()
+    if pd.isna(center_lat) or pd.isna(center_lon):
+        center_lat, center_lon = fallback_center
+
     m = folium.Map(
-        location=[data["latitude"].mean(), data["longitude"].mean()],
+        location=[center_lat, center_lon],
         zoom_start=9,
         tiles="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
         attr="Google",
@@ -289,7 +305,7 @@ else:
         folium.Marker(
             [row["latitude"], row["longitude"]],
             popup=popup_html,
-            tooltip=row["Name"],        # shows name on hover
+            tooltip=row["Name"],
             icon=folium.Icon(color="red", icon="plus-sign"),
         ).add_to(cluster)
 
@@ -297,13 +313,17 @@ else:
 
     with st.expander("↕️ See hospitals in a table"):
         st.dataframe(
-            data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]]
-            .reset_index(drop=True),
+            data[["Name", "Caza", "Phone", "Investment_Authorization_Nb"]].reset_index(drop=True),
             use_container_width=True,
         )
-# ───────────────────── footer
+
+# Footer
 st.markdown("---")
-st.markdown('<p style="font-weight:bold; font-size:18px; font-style:italic;">'
-            'Early detection saves lives. Awareness is the first step to prevention.'
-            '</p>', unsafe_allow_html=True)
+st.markdown(
+    '<p style="font-weight:bold; font-size:18px; font-style:italic;">'
+    'Early detection saves lives. Awareness is the first step to prevention.'
+    '</p>',
+    unsafe_allow_html=True,
+)
 st.caption("© Carine Bichara | Breast Cancer Awareness Dashboard")
+
