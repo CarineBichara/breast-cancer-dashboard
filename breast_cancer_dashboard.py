@@ -154,23 +154,35 @@ rates["mortality_pct"] = rates["mortality_rate"] / 1_000
 latest["incidence_pct"]  = latest["incidence_rate"]  / 1_000
 latest["mortality_pct"]  = latest["mortality_rate"]  / 1_000
 
-# ───────────────────── National benchmarks — BAR PLOTS (%)
-for metric, title in [("incidence_pct", "Incidence"),
-                      ("mortality_pct", "Mortality")]:
+# ───────────────────── National Benchmarks (% of Population)
+rates   = pd.read_csv("GCO_Lebanon_rates.csv")
+latest  = rates.loc[rates.year == rates.year.max()]
+
+# Convert from rate per 100,000 to true percentage
+rates["incidence_pct"]  = rates["incidence_rate"]  / 1_000 * 100
+rates["mortality_pct"]  = rates["mortality_rate"]  / 1_000 * 100
+latest["incidence_pct"] = latest["incidence_rate"] / 1_000 * 100
+latest["mortality_pct"] = latest["mortality_rate"] / 1_000 * 100
+
+# Plot bar charts for latest incidence & mortality by gender
+for metric, title in [("incidence_pct", "Incidence"), ("mortality_pct", "Mortality")]:
     fig_tmp = px.bar(
-        latest, x="gender", y=metric,
-        text_auto=".3f",
+        latest,
+        x="gender",
+        y=metric,
+        text_auto=".2f",
         labels={metric: f"{title} (%)", "gender": "Gender"},
         title=f"Lebanon {title} — {int(latest.year.iloc[0])}",
         color="gender",
         color_discrete_map={"Female": "#8B0000", "Male": "#FFC1C1"},
     )
     fig_tmp.update_layout(
-        height=330, width=500, showlegend=False,
+        height=330,
+        width=500,
+        showlegend=False,
         margin=dict(l=10, r=10, t=40, b=20),
-        yaxis=dict(showticklabels=False)
+        yaxis=dict(title=f"{title} (%)", showticklabels=False)
     )
-    fig_tmp.update_traces(texttemplate="%{text:.3f}%")
     st.plotly_chart(fig_tmp, use_container_width=True)
 
 # ───────────────────── Time-trend & forecast (compact)
