@@ -88,6 +88,16 @@ for i, (metric, title) in enumerate(zip(
         ax.text(bar.get_x()+bar.get_width()/2, h+0.5, f"{h:.1f}%", ha="center", va="bottom", fontsize=8)
     ax.tick_params(axis='x', labelsize=8)
 st.pyplot(fig)
+with st.expander("Interpretation: Gender Comparison"):
+    st.markdown("""
+- **Female patients represent ~98.8% of all cases**, while **males account for only ~1.2%**.  
+- **Women account for ~98.5% of all deaths**, compared to **1.5% for men**, indicating mortality is overwhelmingly among female patients.  
+- **Similarly, female patients bear ~98.4% of total DALYs**, versus **1.6% for males**, reflecting the proportional disease burden.
+
+**Key Message:**  
+Breast cancer burden is heavily concentrated in women, underscoring the need for gender-targeted awareness and screening.  
+Yet **men must not be overlooked**, as even a small number of cases and deaths represent important opportunities for early detection and care.
+""")
 
 # ―― Age histogram (compact)
 colA, colB = st.columns(2)
@@ -110,6 +120,15 @@ with colA:
          "65-69","70-74","75-79","80-84","85-89"],
         fontsize=7)
     st.pyplot(fig_age)
+    with st.expander("Interpretation: Age Distribution"):
+    st.markdown("""
+- Most patients are between **45 and 65** years old.  
+- The **50–54** age group has the highest count.  
+- Lower counts at the extremes may reflect screening patterns or risk differences.
+
+**Key Message:**  
+Focus screening efforts on ages **45–65** for maximum impact.
+""")
 
 # ―― Surgery pie (compact)
 with colB:
@@ -121,6 +140,16 @@ with colB:
     ax.pie(surgery_counts, labels=surgery_counts.index, autopct="%1.0f%%",
            startangle=90, colors=[colors.get(x,red_palette[0]) for x in surgery_counts.index])
     ax.axis("equal"); st.pyplot(fig_surg)
+    with st.expander("Interpretation: Surgery Type Breakdown"):
+    st.markdown("""
+- **Modified Radical Mastectomy (29%)**  
+- **Lumpectomy (21%)**  
+- **Simple Mastectomy (20%)**  
+- **Other Surgeries (31%)**  
+
+**Key Message:**  
+Early detection can reduce the need for invasive procedures.
+""")
 
 # ―― DALY heat-map (height/width trimmed)
 st.subheader("Average DALY by Age Group and Tumor Stage")
@@ -134,6 +163,14 @@ fig_heat = px.imshow(
 fig_heat.update_layout(height=350, width=600, margin=dict(l=10,r=10,t=40,b=20),
                        yaxis_autorange="reversed")
 st.plotly_chart(fig_heat, use_container_width=True)
+with st.expander("Interpretation: Average DALY by Age & Tumor Stage"):
+    st.markdown("""
+- Younger patients with **Stage I** have the highest average DALYs.  
+- DALYs decline with advancing age and vary by tumor stage.  
+
+**Key Message:**  
+Use this to prioritize interventions by **age group and stage** — younger patients with early-stage diagnoses lose the most healthy years.
+""")
 
 # ―― Joyplot (compact)
 st.subheader("Years of Life Lost by Tumor Stage")
@@ -143,6 +180,14 @@ joypy.joyplot(filtered, by="tumour_stage", column="yll", ax=ax, kind="counts",
 ax.set_xlabel("Years of Life Lost (YLL)"); ax.set_ylabel("Tumor Stage")
 ax.set_title("Distribution of YLL by Tumor Stage", fontsize=10)
 st.pyplot(fig)
+with st.expander("Interpretation: YLL by Tumor Stage"):
+    st.markdown("""
+- **Stage I** shows wide variability in YLL.  
+- **Stages II and III** have more clustered, lower YLL distributions.  
+
+**Key Message:**  
+Highlights the importance of **early detection** to reduce life years lost.
+""")
 
 # ───────────────────── National benchmarks (GCO) — convert to %
 rates   = pd.read_csv("GCO_Lebanon_rates.csv")
@@ -165,7 +210,12 @@ latest["incidence_pct"] = latest["incidence_rate"] / 1_000 * 100
 latest["mortality_pct"] = latest["mortality_rate"] / 1_000 * 100
 
 # Plot bar charts for latest incidence & mortality by gender
-for metric, title in [("incidence_pct", "Incidence"), ("mortality_pct", "Mortality")]:
+# ───────────────────── National Benchmarks (% of population)
+# (assumes `latest` already has incidence_pct & mortality_pct)
+
+for metric, title in [("incidence_pct", "Incidence"),
+                      ("mortality_pct", "Mortality")]:
+    # 1️⃣  Plot the bar chart
     fig_tmp = px.bar(
         latest,
         x="gender",
@@ -184,6 +234,26 @@ for metric, title in [("incidence_pct", "Incidence"), ("mortality_pct", "Mortali
         yaxis=dict(title=f"{title} (%)", showticklabels=False)
     )
     st.plotly_chart(fig_tmp, use_container_width=True)
+
+    # 2️⃣  Add the interpretation right below the chart
+    if metric == "incidence_pct":
+        with st.expander("Interpretation: Incidence Rate"):
+            st.markdown(f"""
+- Women: **{latest.loc[latest.gender == 'Female', metric].values[0]:.2f}%**  
+- Men&nbsp;&nbsp;: **{latest.loc[latest.gender == 'Male',   metric].values[0]:.2f}%**  
+
+**Key Point:**  
+Incidence is far higher in women, yet even a small male rate warrants **inclusive screening**.
+""")
+    else:  # mortality_pct
+        with st.expander("Interpretation: Mortality Rate"):
+            st.markdown(f"""
+- Women: **{latest.loc[latest.gender == 'Female', metric].values[0]:.2f}%**  
+- Men&nbsp;&nbsp;: **{latest.loc[latest.gender == 'Male',   metric].values[0]:.2f}%**  
+
+**Key Point:**  
+Mortality disparities mirror incidence, reinforcing the need for **gender-sensitive public-health policies**.
+""")
 
 # ───────────────────── Time-trend & forecast (compact)
 st.markdown("---"); st.subheader("Time Trends & Short-Term Forecast")
@@ -212,6 +282,14 @@ fig_trend.update_layout(
     yaxis_tickformat=".2f"
 )
 st.plotly_chart(fig_trend, use_container_width=True)
+with st.expander("Interpretation: Incidence & Mortality Trends"):
+    st.markdown(f"""
+- Incidence rose from **{ts['incidence_pct'].iloc[0]:.2f}%** to **{ts['incidence_pct'].iloc[-1]:.2f}%** between {ts['year'].iloc[0]} and {ts['year'].iloc[-1]}.  
+- Mortality rose from **{ts['mortality_pct'].iloc[0]:.2f}%** to **{ts['mortality_pct'].iloc[-1]:.2f}%** in the same period.  
+
+**Key Message:**  
+The **gap between incidence and mortality** suggests survival is improving — but not fast enough to match rising case numbers.
+""")
 
 # 3. Forecast on % series (SARIMAX)
 y = ts.set_index("year")["incidence_pct"]         # ← use % column
@@ -232,6 +310,14 @@ df_fc = pd.DataFrame({
     "lower":    ci.iloc[:, 0],
     "upper":    ci.iloc[:, 1],
 })
+with st.expander("Interpretation: Forecast of Incidence"):
+    st.markdown(f"""
+The forecast shows Lebanon’s breast cancer incidence may rise from **{df_fc['forecast'].iloc[0]:.2f}%**  
+to **{df_fc['forecast'].iloc[1]:.2f}%** and **{df_fc['forecast'].iloc[2]:.2f}%** in the coming years.  
+
+**Key Message:**  
+This signals a need to scale up **screening, prevention, and early intervention** immediately.
+""")
 
 # 4. Plot the forecast
 fig_fc = go.Figure()
