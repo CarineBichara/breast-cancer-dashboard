@@ -120,7 +120,8 @@ with colA:
          "65-69","70-74","75-79","80-84","85-89"],
         fontsize=7)
     st.pyplot(fig_age)
-   with st.expander("Interpretation: Age Distribution"):
+
+ with st.expander("Interpretation: Age Distribution"):
     st.markdown("""
     - Most patients are between **45 and 65** years old.  
     - The **50–54** age group has the highest count.  
