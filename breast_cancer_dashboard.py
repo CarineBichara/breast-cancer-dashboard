@@ -121,7 +121,7 @@ with colA:
         fontsize=7)
     st.pyplot(fig_age)
 
- with st.expander("Interpretation: Age Distribution"):
+with st.expander("Interpretation: Age Distribution"):
     st.markdown("""
     - Most patients are between **45 and 65** years old.  
     - The **50–54** age group has the highest count.  
@@ -141,7 +141,7 @@ with colB:
     ax.pie(surgery_counts, labels=surgery_counts.index, autopct="%1.0f%%",
            startangle=90, colors=[colors.get(x,red_palette[0]) for x in surgery_counts.index])
     ax.axis("equal"); st.pyplot(fig_surg)
-   with st.expander("Interpretation: Surgery Type Breakdown"):
+with st.expander("Interpretation: Surgery Type Breakdown"):
     st.markdown("""
     - **Modified Radical Mastectomy (29%)**  
     - **Lumpectomy (21%)**  
