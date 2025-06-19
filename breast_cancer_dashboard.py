@@ -189,38 +189,32 @@ with st.expander("Interpretation: YLL by Tumor Stage"):
 Highlights the importance of **early detection** to reduce life years lost.
 """)
 
-# ───────────────────── National benchmarks (GCO) — convert to %
-rates   = pd.read_csv("GCO_Lebanon_rates.csv")
-latest  = rates.loc[rates.year == rates.year.max()]
+# ───────────────────── National benchmarks (GCO)
+rates = pd.read_csv("GCO_Lebanon_rates.csv")
 
-# Convert rates to percentages
-rates["incidence_pct"] = rates["incidence_rate"] / 1_000
-rates["mortality_pct"] = rates["mortality_rate"] / 1_000
-latest["incidence_pct"]  = latest["incidence_rate"]  / 1_000
-latest["mortality_pct"]  = latest["mortality_rate"]  / 1_000
+# 1️⃣  Latest-year slice
+latest = rates.loc[rates.year == rates.year.max()].copy()
 
-# ───────────────────── National Benchmarks (% of Population)
-rates   = pd.read_csv("GCO_Lebanon_rates.csv")
-latest  = rates.loc[rates.year == rates.year.max()]
+# 2️⃣  ▸ Gender-share variables (for the bar chart that must be comparable to Kaggle %)
+latest["total_incidence"] = latest["incidence_rate"].sum()
+latest["total_mortality"] = latest["mortality_rate"].sum()
+latest["incidence_pct_of_cases"]  = latest["incidence_rate"]  / latest["total_incidence"]  * 100
+latest["mortality_pct_of_cases"]  = latest["mortality_rate"]  / latest["total_mortality"]  * 100
 
-# Convert from rate per 100,000 to true percentage
-rates["incidence_pct"]  = rates["incidence_rate"]  / 1_000 * 100
-rates["mortality_pct"]  = rates["mortality_rate"]  / 1_000 * 100
-latest["incidence_pct"] = latest["incidence_rate"] / 1_000 * 100
-latest["mortality_pct"] = latest["mortality_rate"] / 1_000 * 100
+# 3️⃣  ▸ Population-rate variables (for time-trend & forecast, if you still want them)
+rates["incidence_pct_pop"]  = rates["incidence_rate"]  / 1_000 * 100   # per-100 000 → %
+rates["mortality_pct_pop"]  = rates["mortality_rate"]  / 1_000 * 100
+latest["incidence_pct_pop"] = latest["incidence_rate"] / 1_000 * 100
+latest["mortality_pct_pop"] = latest["mortality_rate"] / 1_000 * 100
 
-# Plot bar charts for latest incidence & mortality by gender
-# ───────────────────── National Benchmarks (% of population)
-# (assumes `latest` already has incidence_pct & mortality_pct)
-
-for metric, title in [("incidence_pct", "Incidence"),
-                      ("mortality_pct", "Mortality")]:
-    # 1️⃣  Plot the bar chart
+# National benchmarks — gender share of incidence & mortality (in % of cases)
+for metric, title in [("incidence_pct_of_cases", "Share of Incidence"),
+                      ("mortality_pct_of_cases", "Share of Mortality")]:
     fig_tmp = px.bar(
         latest,
         x="gender",
         y=metric,
-        text_auto=".2f",
+        text_auto=".1f",
         labels={metric: f"{title} (%)", "gender": "Gender"},
         title=f"Lebanon {title} — {int(latest.year.iloc[0])}",
         color="gender",
@@ -235,26 +229,21 @@ for metric, title in [("incidence_pct", "Incidence"),
     )
     st.plotly_chart(fig_tmp, use_container_width=True)
 
-    # 2️⃣  Add the interpretation right below the chart
-    if metric == "incidence_pct":
-        with st.expander("Interpretation: Incidence Rate"):
-            st.markdown(f"""
-- Women: **{latest.loc[latest.gender == 'Female', metric].values[0]:.2f}%**  
-- Men&nbsp;&nbsp;: **{latest.loc[latest.gender == 'Male',   metric].values[0]:.2f}%**  
+    # Interpretation
+    female_pct = latest.loc[latest.gender == "Female", metric].values[0]
+    male_pct   = latest.loc[latest.gender == "Male",   metric].values[0]
+    expander_title = ("Interpretation: Incidence Share"
+                      if "incidence" in metric
+                      else "Interpretation: Mortality Share")
+    with st.expander(expander_title):
+        st.markdown(f"""
+- Women: **{female_pct:.1f}%**  
+- Men&nbsp;&nbsp;: **{male_pct:.1f}%**
 
-**Key Point:**  
-Incidence is far higher in women, yet even a small male rate warrants **inclusive screening**.
+**Key Insight:**  
+This shows *how cases and deaths are distributed between genders* in Lebanon’s population (share of total cases).  
+That metric is directly comparable to the Kaggle chart above.
 """)
-    else:  # mortality_pct
-        with st.expander("Interpretation: Mortality Rate"):
-            st.markdown(f"""
-- Women: **{latest.loc[latest.gender == 'Female', metric].values[0]:.2f}%**  
-- Men&nbsp;&nbsp;: **{latest.loc[latest.gender == 'Male',   metric].values[0]:.2f}%**  
-
-**Key Point:**  
-Mortality disparities mirror incidence, reinforcing the need for **gender-sensitive public-health policies**.
-""")
-
 # ───────────────────── Time-trend & forecast (compact)
 st.markdown("---"); st.subheader("Time Trends & Short-Term Forecast")
 # ───────────────────── Time-trend & short-term forecast  —  PERCENT VALUES
