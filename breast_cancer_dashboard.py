@@ -120,15 +120,15 @@ with colA:
          "65-69","70-74","75-79","80-84","85-89"],
         fontsize=7)
     st.pyplot(fig_age)
-    with st.expander("Interpretation: Age Distribution"):
+   with st.expander("Interpretation: Age Distribution"):
     st.markdown("""
-- Most patients are between **45 and 65** years old.  
-- The **50–54** age group has the highest count.  
-- Lower counts at the extremes may reflect screening patterns or risk differences.
+    - Most patients are between **45 and 65** years old.  
+    - The **50–54** age group has the highest count.  
+    - Lower counts at the extremes may reflect screening patterns or risk differences.
 
-**Key Message:**  
-Focus screening efforts on ages **45–65** for maximum impact.
-""")
+    **Key Message:**  
+    Focus screening efforts on ages **45–65** for maximum impact.
+    """)
 
 # ―― Surgery pie (compact)
 with colB:
@@ -140,16 +140,17 @@ with colB:
     ax.pie(surgery_counts, labels=surgery_counts.index, autopct="%1.0f%%",
            startangle=90, colors=[colors.get(x,red_palette[0]) for x in surgery_counts.index])
     ax.axis("equal"); st.pyplot(fig_surg)
-    with st.expander("Interpretation: Surgery Type Breakdown"):
+   with st.expander("Interpretation: Surgery Type Breakdown"):
     st.markdown("""
-- **Modified Radical Mastectomy (29%)**  
-- **Lumpectomy (21%)**  
-- **Simple Mastectomy (20%)**  
-- **Other Surgeries (31%)**  
+    - **Modified Radical Mastectomy (29%)**  
+    - **Lumpectomy (21%)**  
+    - **Simple Mastectomy (20%)**  
+    - **Other Surgeries (31%)**  
 
-**Key Message:**  
-Early detection can reduce the need for invasive procedures.
-""")
+    **Key Message:**  
+    Early detection can reduce the need for invasive procedures.
+    """)
+
 
 # ―― DALY heat-map (height/width trimmed)
 st.subheader("Average DALY by Age Group and Tumor Stage")
