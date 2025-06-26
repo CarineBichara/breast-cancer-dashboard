@@ -13,6 +13,11 @@ from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 
+# ── Import Tab Modules ──
+import tab1_kaggle_patient
+import tab2_national_benchmark_full
+import tab3_hospital_map
+
 # ───────────────────── Page Config ─────────────────────
 st.set_page_config(page_title="Breast Cancer Awareness", layout="wide")
 
@@ -77,13 +82,10 @@ st.markdown("Developed by **Carine Bichara**")
 tab1, tab2, tab3 = st.tabs(["Patient-Level (Kaggle)", "National Benchmarks", "Hospitals"])
 
 with tab1:
-    import tab1_kaggle_patient
     tab1_kaggle_patient.display_tab(filtered)
 
 with tab2:
-    import tab2_national_benchmark_full
     tab2_national_benchmark_full.display_tab(main_path)
 
 with tab3:
-    import tab3_hospital_map
     tab3_hospital_map.display_tab(main_path, hospital_coords_file, full_hospitals_file, geo_cache_file)
