@@ -1,0 +1,5 @@
+[server]
+headless = true
+
+[general]
+target = "breast_cancer_dashboard.py"
