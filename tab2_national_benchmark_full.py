@@ -48,7 +48,7 @@ def display_tab(main_path):
         )
         fig1.update_layout(
             height=350, margin=dict(l=10, r=10, t=30, b=10),
-            title=None
+            title_text="",showlegend=True
         )
         fig1.update_traces(line=dict(width=2))
         st.plotly_chart(fig1, use_container_width=True)
@@ -91,7 +91,7 @@ def display_tab(main_path):
         )
         fig2.update_layout(
             height=350, margin=dict(l=10, r=10, t=30, b=10),
-            title=None
+            title_text="", showlegend=True
         )
         fig2.update_traces(line=dict(width=2))
         st.plotly_chart(fig2, use_container_width=True)
